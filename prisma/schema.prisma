@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// Definindo os níveis de acesso
+enum Role {
+  ROOT
+  ADMIN
+  EDITOR
+}
+
+model User {
+  id               String    @id @default(uuid())
+  name             String
+  email            String    @unique
+  password         String
+  role             Role      @default(EDITOR)
+  twoFactorCode    String?   // Código de 6 dígitos temporário
+  twoFactorExpires DateTime? // Tempo limite para inserir o código
+  isActive         Boolean   @default(true)
+  
+  projects         Project[] // Relacionamento 1:N com Projetos
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Project {
+  id            String         @id @default(uuid())
+  title         String
+  slug          String         @unique
+  summary       String
+  content       String         @db.Text // Suporte para o Markdown extenso
+  coverImage    String         // Obrigatório (não tem o '?')
+  isHighlighted Boolean        @default(false)
+  isActive      Boolean        @default(true)
+  
+  authorId      String
+  author        User           @relation(fields: [authorId], references: [id])
+  
+  images        ProjectImage[] // Galeria opcional (relacionamento 1:N)
+  
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("projects")
+}
+
+// Tabela separada para a galeria de imagens
+model ProjectImage {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  imageUrl  String
+  
+  createdAt DateTime @default(now())
+
+  @@map("project_images")
+}
