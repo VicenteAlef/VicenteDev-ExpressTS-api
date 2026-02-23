@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
+import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 
 const transporter = nodemailer.createTransport({
@@ -57,6 +58,78 @@ export const AuthController = {
         message: "Código de verificação enviado para o seu e-mail.",
         require2FA: true,
         email: user.email,
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "Erro interno no servidor." });
+    }
+  },
+  async verify2FA(req: Request, res: Response): Promise<Response | void> {
+    try {
+      const { email, code } = req.body;
+
+      if (!email || !code) {
+        return res
+          .status(400)
+          .json({ error: "Email e código são obrigatórios." });
+      }
+
+      // 1. Busca o usuário
+      const user = await prisma.user.findUnique({ where: { email } });
+
+      if (!user || !user.isActive) {
+        return res
+          .status(401)
+          .json({ error: "Usuário não encontrado ou inativo." });
+      }
+
+      // 2. Verifica se o código bate
+      if (user.twoFactorCode !== code) {
+        return res
+          .status(401)
+          .json({ error: "Código de verificação inválido." });
+      }
+
+      // 3. Verifica se o código expirou
+      if (!user.twoFactorExpires || user.twoFactorExpires < new Date()) {
+        return res
+          .status(401)
+          .json({ error: "Código expirado. Por favor, faça login novamente." });
+      }
+
+      // 4. Limpa o código do banco de dados (já foi usado com sucesso)
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          twoFactorCode: null,
+          twoFactorExpires: null,
+        },
+      });
+
+      // 5. Gera o Token JWT
+      const secret =
+        process.env.JWT_SECRET || "secret_fallback_para_desenvolvimento";
+      const token = jwt.sign(
+        {
+          id: user.id,
+          role: user.role,
+        },
+        secret,
+        { expiresIn: "1d" }, // Token válido por 1 dia
+      );
+
+      // 6. Retorna os dados do usuário (removendo dados sensíveis) e o token
+      const {
+        password,
+        twoFactorCode,
+        twoFactorExpires,
+        ...userWithoutSensitiveData
+      } = user;
+
+      return res.json({
+        message: "Login realizado com sucesso.",
+        user: userWithoutSensitiveData,
+        token,
       });
     } catch (error) {
       console.error(error);
