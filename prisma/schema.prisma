@@ -30,8 +30,6 @@ model User {
   twoFactorExpires DateTime? // Tempo limite para inserir o código
   isActive         Boolean   @default(true)
   
-  projects         Project[] // Relacionamento 1:N com Projetos
-  
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -47,9 +45,6 @@ model Project {
   coverImage    String         // Obrigatório (não tem o '?')
   isHighlighted Boolean        @default(false)
   isActive      Boolean        @default(true)
-  
-  authorId      String
-  author        User           @relation(fields: [authorId], references: [id])
   
   images        ProjectImage[] // Galeria opcional (relacionamento 1:N)
   
