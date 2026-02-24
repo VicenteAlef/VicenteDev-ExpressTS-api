@@ -12,18 +12,8 @@ const adminRoutes = Router();
 adminRoutes.post("/auth/login", AuthController.login);
 adminRoutes.post("/auth/verify-2fa", AuthController.verify2FA);
 
-adminRoutes.get("/test", (req: Request, res: Response) => {
-  res.json({ message: "OK" });
-});
-
 // Rotas protegidas
 adminRoutes.use(authMiddleware);
-
-adminRoutes.get("/me", (req: Request, res: Response) => {
-  return res.json({
-    message: "Você está autenticado",
-  });
-});
 
 // ROTA DO PRÓPRIO PERFIL (Acessível por ROOT, ADMIN e EDITOR)
 adminRoutes.put("/profile", ProfileController.update);

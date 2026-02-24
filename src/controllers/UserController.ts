@@ -61,7 +61,7 @@ export const UserController = {
   async update(req: Request, res: Response): Promise<Response | void> {
     try {
       const { id } = req.params;
-      const { name, email, role } = req.body;
+      const { name, email, password, role } = req.body;
 
       // Proteção para não rebaixar ou alterar um ROOT acidentalmente
       const targetUser = await prisma.user.findUnique({
@@ -73,9 +73,34 @@ export const UserController = {
           .json({ error: "Apenas o ROOT pode editar o próprio ROOT." });
       }
 
+      // Prepara o objeto com os dados que serão atualizados
+      const dataToUpdate: {
+        name?: string;
+        email?: string;
+        password?: string;
+        role?: "ADMIN" | "EDITOR";
+      } = {};
+
+      if (name) {
+        dataToUpdate.name = name;
+      }
+
+      if (email) {
+        dataToUpdate.email = email;
+      }
+
+      if (password) {
+        // Se o usuário enviou uma nova senha, fazemos o hash antes de salvar
+        dataToUpdate.password = await bcrypt.hash(password, 10);
+      }
+
+      if (role) {
+        dataToUpdate.role = role;
+      }
+
       const updatedUser = await prisma.user.update({
         where: { id: id as string },
-        data: { name, email, role },
+        data: dataToUpdate,
         select: { id: true, name: true, email: true, role: true },
       });
 
