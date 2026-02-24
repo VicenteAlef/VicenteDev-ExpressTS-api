@@ -1,11 +1,42 @@
+import type { Request, Response } from "express";
 import { Router } from "express";
 import { AuthController } from "../controllers/AuthController.js";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { requireAdmin } from "../middlewares/roleMiddleware.js";
+import { UserController } from "../controllers/UserController.js";
+import { ProfileController } from "../controllers/ProfileController.js";
 
 const adminRoutes = Router();
 
-// Rota de login (Passo 1: Geração do 2FA)
+// Rota de publicas de login e 2FA
 adminRoutes.post("/auth/login", AuthController.login);
-// Rota de verificação (Passo 2: Emissão do JWT) // <-- Nova rota
 adminRoutes.post("/auth/verify-2fa", AuthController.verify2FA);
+
+adminRoutes.get("/test", (req: Request, res: Response) => {
+  res.json({ message: "OK" });
+});
+
+// Rotas protegidas
+adminRoutes.use(authMiddleware);
+
+adminRoutes.get("/me", (req: Request, res: Response) => {
+  return res.json({
+    message: "Você está autenticado",
+  });
+});
+
+// ROTA DO PRÓPRIO PERFIL (Acessível por ROOT, ADMIN e EDITOR)
+adminRoutes.put("/profile", ProfileController.update);
+
+// ROTAS DE GESTÃO DE USUÁRIOS (Apenas ADMIN e ROOT)
+adminRoutes.get("/users", requireAdmin, UserController.index);
+adminRoutes.post("/users", requireAdmin, UserController.create);
+adminRoutes.put("/users/:id", requireAdmin, UserController.update);
+adminRoutes.patch(
+  "/users/:id/status",
+  requireAdmin,
+  UserController.toggleStatus,
+);
+adminRoutes.delete("/users/:id", requireAdmin, UserController.delete);
 
 export { adminRoutes };
